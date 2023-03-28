@@ -1,53 +1,22 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.9'
-            args '-v $HOME/.cache/pip:/root/.cache/pip'
-        }
-    }
-    environment {
-        DB_HOST = 'db'
-        DB_PORT = '5432'
-        DB_NAME = 'mydb'
-        DB_USER = 'myuser'
-        DB_PASSWORD = 'mypassword'
-    }
+    agent any
     stages {
-        stage('Build'){
-            step {
-                sh 'pip install pipenv'
-                sh 'pipenv install --dev'
+        stage('Build') {
+            steps {
+                sh 'docker build -t thangdz233/jenkinsdjango:latest .'
             }
         }
-        stage('Test'){
-            step {
-                sh 'pipenv run pytest'
-            }
-        }
-        stage('Build Docker Image'){
-            step {
-                script {
-                    docker.build('myapp:${env.BUILD_NUMBER}')
+        stage('Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME')]) {
+                    sh 'docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD'
+                    sh 'docker push thangdz233/jenkinsdjango:latest'
                 }
             }
         }
-        stage('Deploy'){
-            step {
-                script {
-                    docker.withRegistry('') {
-                        docker.image('').push()
-                    }
-                }
-            }
-        }
-        stage('Run') {
-            step {
-                script {
-                    docker.withRun("-p 8000:8000 --name myapp --link db:db -e DB_HOST=$DB_HOST -e DB_PORT=$DB_PORT -e DB_NAME=$DB_NAME -e DB_USER=$DB_USER -e DB_PASSWORD=$DB_PASSWORD myapp:${env.BUILD_NUMBER}") {
-                        sh 'pipenv run python manage.py migrate'
-                        sh 'pipenv run python manage.py runserver 0.0.0.0:8000'
-                    }
-                }
+        stage('Deploy') {
+            steps {
+                sh 'docker run -p 8000:8000 -d thangdz233/jenkinsdjango:latest'
             }
         }
     }
