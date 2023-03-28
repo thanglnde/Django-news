@@ -1,21 +1,23 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
 # Set the working directory to /app
 WORKDIR /app
 
-# Install dependencies
-COPY Pipfile Pipfile.lock /app/
-RUN pip install pipenv && pipenv install --system --deploy
+# Copy the requirements file into the container at /app
+COPY requirements.txt /app/
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --trusted-host pypi.python.org -r requirements.txt
 
 # Copy the current directory contents into the container at /app
 COPY . /app/
 
-# Expose port 8000 for the Django app
+# Make port 8000 available to the world outside this container
 EXPOSE 8000
 
-# Run the command to start the Django app
+# Define environment variable
+ENV NAME World
+
+# Run app.py when the container launches
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
